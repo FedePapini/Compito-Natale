@@ -13,23 +13,26 @@ import { AuthService } from '../services/auth.service';
     <h2>Registrazione</h2>
 
     <label>Nome</label>
-    <input style="width:100%" [(ngModel)]="displayName" />
+    <input style="width:100%" [(ngModel)]="displayName" name="displayName" autocomplete="name" />
 
     <label>Email</label>
-    <input style="width:100%" [(ngModel)]="email" type="email" />
+    <input style="width:100%" [(ngModel)]="email" name="email" type="email" autocomplete="username" />
 
-    <label>Password</label>
-    <input style="width:100%" [(ngModel)]="password" type="password" />
+    <label>Password (min 6 caratteri)</label>
+    <input style="width:100%" [(ngModel)]="password" name="password" type="password" autocomplete="new-password" />
 
-    <button (click)="onRegister()" style="margin-top:12px;width:100%">Crea account</button>
+    <button type="button" (click)="onRegister()" [disabled]="loading"
+      style="margin-top:12px;width:100%">
+      {{ loading ? 'Creazione...' : 'Registrati' }}
+    </button>
 
     <p style="margin-top:12px">
       Hai già un account? <a routerLink="/auth/login">Login</a>
     </p>
 
-    <p *ngIf="error" style="color:red">{{ error }}</p>
+    <p *ngIf="error" style="color:red;white-space:pre-wrap">{{ error }}</p>
   </div>
-  `
+  `,
 })
 export class RegisterComponent {
   private auth = inject(AuthService);
@@ -38,15 +41,30 @@ export class RegisterComponent {
   displayName = '';
   email = '';
   password = '';
+  loading = false;
   error = '';
 
   async onRegister() {
     this.error = '';
+
+    if (!this.displayName || !this.email || !this.password) {
+      this.error = 'Compila nome, email e password.';
+      return;
+    }
+    if (this.password.length < 6) {
+      this.error = 'Password troppo corta (minimo 6 caratteri).';
+      return;
+    }
+
+    this.loading = true;
     try {
-      await this.auth.register(this.email, this.password, this.displayName);
-      this.router.navigateByUrl('/');
+      await this.auth.register(this.email.trim(), this.password, this.displayName.trim());
+      this.router.navigateByUrl('/me');
     } catch (e: any) {
-      this.error = e?.message ?? 'Errore registrazione';
+      console.error('REGISTER ERROR', e);
+      this.error = (e?.code ? `${e.code}\n` : '') + (e?.message ?? String(e));
+    } finally {
+      this.loading = false;
     }
   }
 }

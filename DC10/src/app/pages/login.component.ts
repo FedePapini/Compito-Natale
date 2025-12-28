@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -14,20 +13,23 @@ import { AuthService } from '../services/auth.service';
     <h2>Login</h2>
 
     <label>Email</label>
-    <input style="width:100%" [(ngModel)]="email" type="email" />
+    <input style="width:100%" [(ngModel)]="email" name="email" type="email" autocomplete="username" />
 
     <label>Password</label>
-    <input style="width:100%" [(ngModel)]="password" type="password" />
+    <input style="width:100%" [(ngModel)]="password" name="password" type="password" autocomplete="current-password" />
 
-    <button (click)="onLogin()" style="margin-top:12px;width:100%">Entra</button>
+    <button type="button" (click)="onLogin()" [disabled]="loading"
+      style="margin-top:12px;width:100%">
+      {{ loading ? 'Accesso...' : 'Accedi' }}
+    </button>
 
     <p style="margin-top:12px">
       Non hai un account? <a routerLink="/auth/register">Registrati</a>
     </p>
 
-    <p *ngIf="error" style="color:red">{{ error }}</p>
+    <p *ngIf="error" style="color:red;white-space:pre-wrap">{{ error }}</p>
   </div>
-  `
+  `,
 })
 export class LoginComponent {
   private auth = inject(AuthService);
@@ -35,15 +37,28 @@ export class LoginComponent {
 
   email = '';
   password = '';
+  loading = false;
   error = '';
 
   async onLogin() {
     this.error = '';
+    if (!this.email || !this.password) {
+      this.error = 'Inserisci email e password.';
+      return;
+    }
+
+    this.loading = true;
     try {
-      await this.auth.login(this.email, this.password);
-      this.router.navigateByUrl('/');
+      const cred = await this.auth.login(this.email.trim(), this.password);
+      const role = await this.auth.getRole(cred.user.uid);
+
+      // ✅ redirect per ruolo
+      this.router.navigateByUrl(role === 'admin' ? '/admin' : '/me');
     } catch (e: any) {
-      this.error = e?.message ?? 'Errore login';
+      console.error('LOGIN ERROR', e);
+      this.error = (e?.code ? `${e.code}\n` : '') + (e?.message ?? String(e));
+    } finally {
+      this.loading = false;
     }
   }
 }
